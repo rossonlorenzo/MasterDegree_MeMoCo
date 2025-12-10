@@ -1,6 +1,6 @@
 /**
  * @file sample_generator.h
- * @brief 
+ * @brief SampleGenerator class definition
  */
 
 #ifndef SAMPLE_GENERATOR_H

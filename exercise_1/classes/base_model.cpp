@@ -1,6 +1,6 @@
 /**
  * @file base_model.cpp
- * @brief Implementation of BaseModel class with full CPLEX integration
+ * @brief Implementation of BaseModel class
  */
 
 #include "base_model.h"
@@ -23,9 +23,9 @@ BaseModel::BaseModel(CPXENVptr env_, CPXLPptr lp_, const std::string &directory)
       status(0),
       start_node(0),
       current_N(0)
-{
-}
+{}
 
+// setters
 void BaseModel::setStartNode(int s)
 {
     start_node = s;
@@ -37,15 +37,7 @@ void BaseModel::setRunCost(const std::vector<std::vector<double>> &C)
     current_N = static_cast<int>(C.size());
 }
 
-// Helper for y-index (undirected edges)
-int BaseModel::y_index(int i, int j) const
-{
-    if (i == j)
-        return -1;
-    return (i < j) ? map_y[i][j] : map_y[j][i];
-}
-
-// Setup LP/MIP model
+// setup LP model
 int BaseModel::setupLP(int N, int run_id)
 {
     if (!env || !lp)
@@ -63,7 +55,7 @@ int BaseModel::setupLP(int N, int run_id)
         for (int j = 0; j < N; ++j)
         {
             if (i == j) continue;
-            if (j == start_node) continue; // reference uses j from 1..N-1 (skip depot/start)
+            if (j == start_node) continue;
 
             char xtype = 'C';
             double lb = 0.0;
@@ -80,14 +72,14 @@ int BaseModel::setupLP(int N, int run_id)
     }
 
 
-         // 2) Directed y_ij variables (path/arcs), for all i != j
+    // 2) Directed y_ij variables (path/arcs), for all i != j
     for (int i = 0; i < N; ++i)
     {
         for (int j = 0; j < N; ++j)
         {
             if (i == j) continue;
 
-            char ytype = 'B'; // binary arc chosen
+            char ytype = 'B';
             double lb = 0.0;
             double ub = 1.0;
             double objy = run_cost[i][j]; // note: run_cost must be N x N
@@ -102,10 +94,10 @@ int BaseModel::setupLP(int N, int run_id)
         }
     }
 
-        // 3) Flow conservation constraints (for non-depot nodes k = 1..N-1)
+    // 3) Flow conservation constraints (for non-depot nodes k = 1..N-1)
     for (int k = 0; k < N; ++k)
     {
-        if (k == start_node) continue; // reference uses k from 1..N-1 (start_node/depot is 0)
+        if (k == start_node) continue;
 
         std::vector<int> idx;
         std::vector<double> coef;
@@ -134,7 +126,7 @@ int BaseModel::setupLP(int N, int run_id)
         if (!idx.empty())
         {
             char sense = 'E';
-            double rhs = 1.0; // reference uses rhs = 1
+            double rhs = 1.0;
             int matbeg = 0;
             CHECKED_CPX_CALL(CPXaddrows, env, lp, 0, 1,
                              static_cast<int>(idx.size()), &rhs, &sense, &matbeg,
@@ -142,7 +134,7 @@ int BaseModel::setupLP(int N, int run_id)
         }
     }
 
-        // 4a) One outgoing arc per node: sum_j y[i][j] = 1
+    // 4a) One outgoing arc per node: sum_j y[i][j] = 1
     for (int i = 0; i < N; ++i)
     {
         std::vector<int> idx;
@@ -189,15 +181,15 @@ int BaseModel::setupLP(int N, int run_id)
     }
 
 
-        // 5) Linking constraints x_ij ≤ (N-1) * y_ij for j != start_node
+    // 5) Linking constraints x_ij ≤ (N-1) * y_ij for j != start_node
     for (int i = 0; i < N; ++i)
     {
         for (int j = 0; j < N; ++j)
         {
             if (i == j) continue;
-            if (j == start_node) continue; // reference excludes j == 0 in x creation
+            if (j == start_node) continue;
             int xv = map_x[i][j];
-            int yv = map_y[i][j]; // direct ordered y
+            int yv = map_y[i][j];
 
             if (xv >= 0 && yv >= 0)
             {
@@ -217,24 +209,24 @@ int BaseModel::setupLP(int N, int run_id)
     return current_var_position;
 }
 
-// Solve the LP/MIP for one run, write lp and solution file, and return elapsed time
+// solve the LP/MIP for one run, write lp and solution file, and return run results
 BaseModel::RunResult BaseModel::solveRun(int run_id, const std::string &solution_file, int &start_node_out)
 {
     if (!env)
         throw std::runtime_error("CPLEX not initialized");
 
-    // Create a fresh LP for this run (do NOT free the member 'lp' that main owns).
+    // create a fresh LP for this run (do NOT free the member 'lp' that main owns).
     CPXLPptr lp_local = nullptr;
     int local_status = 0;
     lp_local = CPXcreateprob(env, &local_status, "BaseModel_RunLocal");
     if (!lp_local || local_status != 0)
         throw std::runtime_error("Failed to create run-local LP");
 
-    // Save original member lp, swap in the local LP so setupLP uses it
+    // save original member lp, swap in the local LP so setupLP uses it
     CPXLPptr lp_saved = lp;
     lp = lp_local;
 
-    // Ensure we restore lp and free lp_local even if an exception is thrown
+    // ensure we restore lp and free lp_local even if an exception is thrown
     try
     {
         result.N = current_N;
@@ -248,23 +240,23 @@ BaseModel::RunResult BaseModel::solveRun(int run_id, const std::string &solution
 
         result.start_node = start_node;
 
-        // Build the model on the fresh lp_local (via member lp)
+        // build the model on the fresh lp_local (via member lp)
         setupLP(current_N, run_id);
 
-        // Write LP file for debugging
+        // write LP file for debugging
         std::string lpfile = solution_file;
         auto pos = lpfile.find(".sol");
         if (pos != std::string::npos)
             lpfile.replace(pos, 4, ".lp");
         CHECKED_CPX_CALL(CPXwriteprob, env, lp, lpfile.c_str(), nullptr);
 
-        // Time using chrono
+        // time using chrono
         auto t0 = std::chrono::steady_clock::now();
         CHECKED_CPX_CALL(CPXmipopt, env, lp);
         auto t1 = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = t1 - t0;
 
-        // Check solution status
+        // check solution status
         int solstat = CPXgetstat(env, lp);
 
         result.optimal = (solstat == CPXMIP_OPTIMAL ||
@@ -276,7 +268,7 @@ BaseModel::RunResult BaseModel::solveRun(int run_id, const std::string &solution
             CHECKED_CPX_CALL(CPXsolwrite, env, lp, solution_file.c_str());
         } else {
             objval = std::numeric_limits<double>::quiet_NaN();
-            // Optionally log: no incumbent / infeasible / etc.
+            std::cerr << "Warning: Could not retrieve objective value, return code: " << ret << std::endl;
         }
         result.objective_value = objval;
 
@@ -284,7 +276,7 @@ BaseModel::RunResult BaseModel::solveRun(int run_id, const std::string &solution
         CPXgetmiprelgap(env, lp_local, &mip_gap);
         result.gap = mip_gap * 100.0;
 
-        // Restore member lp and free the local lp
+        // restore member lp and free the local lp
         lp = lp_saved;
         CPXfreeprob(env, &lp_local); // safe: lp_local == lp_local (not member)
         result.solve_time = elapsed.count();
@@ -292,7 +284,7 @@ BaseModel::RunResult BaseModel::solveRun(int run_id, const std::string &solution
     }
     catch (...)
     {
-        // Always restore member lp and free the local lp on exception
+        // always restore member lp and free the local lp on exception
         lp = lp_saved;
         if (lp_local) CPXfreeprob(env, &lp_local);
         throw; // rethrow

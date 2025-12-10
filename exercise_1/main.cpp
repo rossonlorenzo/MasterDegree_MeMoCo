@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @brief Simplified main using BaseModel encapsulating CPLEX
+ * @brief Main program for solving exercise 1 using BaseModel and SampleGenerator
  */
 
 #include <cstdio>
@@ -45,7 +45,7 @@ int main()
             generator.generate(config, N);
         }
 
-        // --------- Declare env & lp ---------
+        // declare env & lp 
         CPXENVptr env = nullptr;
         CPXLPptr lp = nullptr;
 
@@ -54,7 +54,7 @@ int main()
         if (!env || status_local != 0)
             throw std::runtime_error("CPLEX environment creation failed");
 
-        // Initialize problem once (or recreate per run)
+        // initialize problem
         lp = CPXcreateprob(env, &status_local, "BaseModelProblem");
         if (!lp)
         {
@@ -62,10 +62,10 @@ int main()
             throw std::runtime_error("Failed to create LP");
         }
 
-        // --------- Pass handles to model ---------
+        // pass handles to model
         BaseModel model(env, lp, "samples");
 
-        // --------- Load configurations ---------
+        // load configurations
         std::vector<BaseModel::GraphConfig> configs;
         const std::string directory = "samples";
         for (const auto &entry : fs::directory_iterator(directory))
@@ -85,7 +85,7 @@ int main()
             configs.push_back(std::move(config));
         }
 
-        // Sort configs by their index
+        // sort configs by their index
         std::sort(configs.begin(), configs.end(),
                   [](const BaseModel::GraphConfig &a, const BaseModel::GraphConfig &b)
                   {
@@ -93,10 +93,10 @@ int main()
                   });
 
         fs::create_directories("solutions");
-        // --------- Process configurations ---------
+        // process configurations
         std::vector<BaseModel::RunResult> all_results;
         std::ofstream csvfile("solutions/summary_results.csv");
-        csvfile << "ConfigIndex,RunIndex,N,StartNode,SolveTime,Optimal,Gap,ObjectiveValue\n";
+        csvfile << "ConfigIndex,RunIndex,N,StartNode,SolveTime,Optimal,Gap,ObjectiveValue,AvgTime,OptimalCount\n";
         for (const auto &cfg : configs)
         {
             std::string configDir = "solutions/config_" + std::to_string(cfg.index) + "_N_" + std::to_string(cfg.N);
@@ -117,6 +117,7 @@ int main()
                     ++optimal_count;
                 all_results.push_back(result);
                 
+                // log results
                 std::cout << "Run " << result.run_index << " completed\n"
                           << "- Solve time: " << result.solve_time << " sec\n"
                           << "- Solution status: "
@@ -126,22 +127,21 @@ int main()
                           << "- Objective: " << result.objective_value << "\n"
                           << "- Start node: " << result.start_node << "\n\n";
 
+                // write to CSV
                     csvfile << cfg.index << "," << result.run_index << "," << result.N << ","
                             << result.start_node << "," << result.solve_time << ","
                             << (result.optimal ? 1 : 0) << "," << result.gap << ","
-                            << result.objective_value << "\n";
+                            << result.objective_value << ",,\n";
                     if (run == 10)
                     {
-                        csvfile << "AverageTime,OptimalCount,,,,,,\n";
-                        csvfile << avg_time / 10.0 << "," << optimal_count << ",,,,,,\n";
-                        csvfile << "\n";
+                        csvfile << cfg.index << ",,,,,,," <<avg_time / 10.0 << "," << optimal_count << "\n";
                     }
             }
             char towait; std::cout << "\nAll runs completed for config " << (cfg.index) << ". Press a key to continue...\n"; std::cin >> towait;
         }
         csvfile.close();
 
-        // --------- Cleanup ---------
+        // cleanup
         if (lp)
             CPXfreeprob(env, &lp);
         if (env)

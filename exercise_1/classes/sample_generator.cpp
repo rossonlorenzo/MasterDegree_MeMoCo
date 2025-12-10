@@ -1,6 +1,6 @@
 /**
  * @file sample_generator.cpp
- * @brief
+ * @brief Implementation of SampleGenerator class
  */
 
 #include "sample_generator.h"
