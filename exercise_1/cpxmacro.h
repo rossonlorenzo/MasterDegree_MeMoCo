@@ -1,7 +1,6 @@
 /**
  * @file cpx_macro.h
- * Cplex Helper Macros
- *
+ * @brief Modernized CPLEX Helper Macros without global variables
  */
 
 #ifndef CPX_MACRO_H
@@ -12,56 +11,60 @@
 #include <stdexcept>
 #include <ilcplex/cplex.h>
 
-#define STRINGIZE(something) STRINGIZE_HELPER(something) 
+#define STRINGIZE(something) STRINGIZE_HELPER(something)
 #define STRINGIZE_HELPER(something) #something
 
 /**
- * typedefs of basic Callable Library entities,
- * i.e. environment (Env) and problem pointers (Prob).
+ * typedefs for basic Callable Library entities
  */
-
 typedef CPXENVptr Env;
-typedef CPXCENVptr CEnv;
 typedef CPXLPptr Prob;
-typedef CPXCLPptr CProb;
 
-/* Cplex Error Status and Message Buffer */
-
-extern int status;
-
-const unsigned int BUF_SIZE = 4096;
-
-extern char errmsg[BUF_SIZE];
-
-/* Shortcut for declaring a Cplex Env */
+/**
+ * Shortcut for declaring a CPLEX environment with error checking
+ */
 #define DECL_ENV(name) \
-Env name = CPXopenCPLEX(&status);\
-if (status){\
-	CPXgeterrorstring(NULL, status, errmsg);\
-	int trailer = std::strlen(errmsg) - 1;\
-	if (trailer >= 0) errmsg[trailer] = '\0';\
-	throw std::runtime_error(std::string(__FILE__) + ":" + STRINGIZE(__LINE__) + ": " + errmsg);\
+Env name = CPXopenCPLEX(&status); \
+{ \
+    int local_status = status; \
+    if (local_status) { \
+        char errmsg_buf[4096]; \
+        CPXgeterrorstring(NULL, local_status, errmsg_buf); \
+        int trailer = std::strlen(errmsg_buf) - 1; \
+        if (trailer >= 0) errmsg_buf[trailer] = '\0'; \
+        throw std::runtime_error(std::string(__FILE__) + ":" + STRINGIZE(__LINE__) + ": " + errmsg_buf); \
+    } \
 }
 
-/* Shortcut for declaring a Cplex Problem */
+/**
+ * Shortcut for declaring a CPLEX problem with error checking
+ */
 #define DECL_PROB(env, name) \
-Prob name = CPXcreateprob(env, &status, "");\
-if (status){\
-	CPXgeterrorstring(NULL, status, errmsg);\
-	int trailer = std::strlen(errmsg) - 1;\
-	if (trailer >= 0) errmsg[trailer] = '\0';\
-	throw std::runtime_error(std::string(__FILE__) + ":" + STRINGIZE(__LINE__) + ": " + errmsg);\
+Prob name = CPXcreateprob(env, &status, ""); \
+{ \
+    int local_status = status; \
+    if (local_status) { \
+        char errmsg_buf[4096]; \
+        CPXgeterrorstring(env, local_status, errmsg_buf); \
+        int trailer = std::strlen(errmsg_buf) - 1; \
+        if (trailer >= 0) errmsg_buf[trailer] = '\0'; \
+        throw std::runtime_error(std::string(__FILE__) + ":" + STRINGIZE(__LINE__) + ": " + errmsg_buf); \
+    } \
 }
 
-/* Make a checked call to a Cplex API function */
-#define CHECKED_CPX_CALL(func, env, ...) do {\
-status = func(env, __VA_ARGS__);\
-if (status){\
-	CPXgeterrorstring(env, status, errmsg);\
-	int trailer = std::strlen(errmsg) - 1;\
-	if (trailer >= 0) errmsg[trailer] = '\0';\
-	throw std::runtime_error(std::string(__FILE__) + ":" + STRINGIZE(__LINE__) + ": " + errmsg);\
-} \
+/**
+ * Make a checked call to any CPLEX API function
+ * Usage: CHECKED_CPX_CALL(CPXnewcols, env, lp, 1, &obj, &lb, &ub, &ctype, &xname);
+ */
+#define CHECKED_CPX_CALL(func, env, ...) do { \
+    int local_status = func(env, __VA_ARGS__); \
+    if (local_status) { \
+        char errmsg_buf[4096]; \
+        CPXgeterrorstring(env, local_status, errmsg_buf); \
+        int trailer = std::strlen(errmsg_buf) - 1; \
+        if (trailer >= 0) errmsg_buf[trailer] = '\0'; \
+        throw std::runtime_error(std::string(__FILE__) + ":" + STRINGIZE(__LINE__) + ": " + errmsg_buf); \
+    } \
 } while(false)
 
 #endif /* CPX_MACRO_H */
