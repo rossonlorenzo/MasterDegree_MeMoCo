@@ -23,7 +23,7 @@
 // -----------------------------
 int SuggestedModel::buildVariables()
 {
-    int N = current_config.N;
+    int N = current_config->getN();
     map_x.assign(N, std::vector<int>(N, -1));
     map_y.assign(N, std::vector<int>(N, -1));
     int current_var_position = 0;
@@ -60,8 +60,8 @@ int SuggestedModel::buildVariables()
             if (i == j) continue;
 
             double objy = 0.0;
-            if ((int)current_config.cost.size() == N && (int)current_config.cost[i].size() == N) {
-                objy = current_config.cost[i][j];
+            if ((int)current_config->getCost().size() == N && (int)current_config->getCost()[i].size() == N) {
+                objy = current_config->getCost()[i][j];
             }
             double lb = 0.0;
             double ub = 1.0;
@@ -90,7 +90,7 @@ int SuggestedModel::buildConstraints()
     if (!env || !lp)
         throw std::runtime_error("CPLEX not initialized in SuggestedModel::buildConstraints");
 
-    int N = current_config.N;
+    int N = current_config->getN();
 
     // 1) Flow conservation for non-start nodes (k != start_node)
     for (int k = 0; k < N; ++k)

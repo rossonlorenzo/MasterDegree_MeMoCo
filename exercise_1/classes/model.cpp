@@ -11,9 +11,9 @@ Model::Model(Env env_, Prob lp_)
     : env(env_),
       lp(lp_),
       status(0),
-      start_node(0)
+      start_node(0),
+      current_config(std::nullopt)
 {
-    current_config = {};
     current_run_result = {};
 }
 
@@ -29,7 +29,7 @@ Model::~Model()
  *  Setters
  * ============================================================ */
 
-void Model::setGraphConfig(const GraphConfig &c)
+void Model::setGraphConfig(const TSP &c)
 {
     current_config = c;
 }
@@ -42,7 +42,7 @@ void Model::setStartNode(int s)
 /* ============================================================
  *  setupLP
  * ============================================================ */
-int Model::setupLP(GraphConfig config, int run_id, int start_node, const std::string &lp_file)
+int Model::setupLP(TSP config, int run_id, int start_node, const std::string &lp_file)
 {
     CHECKED_CPX_CALL(CPXfreeprob, env, &lp);   // free previous LP
     lp = CPXcreateprob(env, &status, "model");
@@ -80,7 +80,9 @@ Model::RunResult Model::solveRun(int run_id,
     throw std::runtime_error("CPLEX not initialized");
 
     current_run_result.run_index = run_id;
-    current_run_result.N = current_config.N;
+    if (!current_config.has_value())
+        throw std::runtime_error("No graph configuration set");
+    current_run_result.N = current_config->getN();
     current_run_result.start_node = start_node;
 
     // Timing (solver)

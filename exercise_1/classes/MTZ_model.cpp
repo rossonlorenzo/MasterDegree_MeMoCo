@@ -24,7 +24,7 @@ int MTZModel::buildVariables()
     if (!env || !lp)
         throw std::runtime_error("CPLEX not initialized in MTZModel::buildVariables");
 
-    int N = current_config.N;
+    int N = current_config->getN();
     if (N <= 0) return 0;
 
     // init maps
@@ -41,8 +41,8 @@ int MTZModel::buildVariables()
             if (i == j) continue;
 
             double objy = 0.0;
-            if ((int)current_config.cost.size() == N && (int)current_config.cost[i].size() == N) {
-                objy = current_config.cost[i][j];
+            if ((int)current_config->getCost().size() == N && (int)current_config->getCost()[i].size() == N) {
+                objy = current_config->getCost()[i][j];
             }
             double lb = 0.0;
             double ub = 1.0;
@@ -94,7 +94,7 @@ int MTZModel::buildConstraints()
     if (!env || !lp)
         throw std::runtime_error("CPLEX not initialized in MTZModel::buildConstraints");
 
-    int N = current_config.N;
+    int N = current_config->getN();
     if (N <= 0) return 0;
 
     // 1) One outgoing y per node: sum_j y[i][j] = 1

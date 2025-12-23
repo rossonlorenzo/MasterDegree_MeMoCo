@@ -9,17 +9,11 @@
 #include <vector>
 #include <string>
 #include "../cpxmacro.h"
+#include "TSP.h"
 
 class Model
 {
 public:
-    struct GraphConfig
-    {
-        int index;
-        int N;
-        std::vector<std::vector<double>> cost;
-    };
-
     struct RunResult
     {
         int run_index;
@@ -40,7 +34,7 @@ protected:
     Env env;
     Prob lp;
     int status;
-    GraphConfig current_config;
+    std::optional<TSP> current_config;
     int start_node;
 
     std::vector<std::vector<int>> map_x;
@@ -49,14 +43,14 @@ protected:
     RunResult current_run_result;
 
 private:
-    void setGraphConfig(const GraphConfig &c);
+    void setGraphConfig(const TSP &c);
     void setStartNode(int s);
 
 public:
     Model(Env env, Prob lp);
     virtual ~Model();
     // LP/MIP setup and solve
-    int setupLP(GraphConfig config, int run_id, int start_node, const std::string &lp_file);
+    int setupLP(TSP config, int run_id, int start_node, const std::string &lp_file);
     RunResult solveRun(int run_id, const std::string &solution_file);
 };
 

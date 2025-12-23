@@ -18,6 +18,7 @@
 #include <random>
 
 #include "cpxmacro.h"
+#include "classes/TSP.h"
 #include "classes/model.h"
 #include "classes/suggested_model.h"
 #include "classes/MTZ_model.h"
@@ -156,7 +157,7 @@ int main()
         }
 
         // load configurations
-        std::vector<Model::GraphConfig> configs;
+        std::vector<TSP> configs;
         const std::string directory = "samples";
         for (const auto &entry : fs::directory_iterator(directory))
         {
@@ -166,20 +167,24 @@ int main()
             if (!file)
                 continue;
 
-            Model::GraphConfig config;
-            file >> config.index >> config.N;
-            config.cost.assign(config.N, std::vector<double>(config.N));
-            for (int i = 0; i < config.N; ++i)
-                for (int j = 0; j < config.N; ++j)
-                    file >> config.cost[i][j];
+            int index;
+            int N;
+            std::vector<std::vector<double>> cost;
+
+            file >> index >> N;
+            cost.assign(N, std::vector<double>(N));
+            for (int i = 0; i < N; ++i)
+                for (int j = 0; j < N; ++j)
+                    file >> cost[i][j];
+            TSP config(index, N, cost);
             configs.push_back(std::move(config));
         }
 
         // sort configs by their index
         std::sort(configs.begin(), configs.end(),
-                  [](const Model::GraphConfig &a, const Model::GraphConfig &b)
+                  [](const TSP &a, const TSP &b)
                   {
-                      return a.index < b.index;
+                      return a.getIndex() < b.getIndex();
                   });
 
         // process each configuration
@@ -192,17 +197,17 @@ int main()
         {
 
             // create directory for this config's solutions
-            std::string configDir = solution_directory + "/config_" + std::to_string(cfg.index) + "_N_" + std::to_string(cfg.N);
+            std::string configDir = solution_directory + "/config_" + std::to_string(cfg.getIndex()) + "_N_" + std::to_string(cfg.getN());
             fs::create_directories(configDir);
 
-            std::cout << "\nProcessing Config " << cfg.index << " with N=" << cfg.N << "\n";
+            std::cout << "\nProcessing Config " << cfg.getIndex() << " with N=" << cfg.getN() << "\n";
 
             double avg_time = 0.0;
             int optimal_count = 0;
 
             for (int run = 1; run <= 10; ++run)
             {
-                int start_node = std::uniform_int_distribution<int>(0, cfg.N - 1)(rng);
+                int start_node = std::uniform_int_distribution<int>(0, cfg.getN() - 1)(rng);
 
                 // setup config
                 std::string path = configDir + "/run_" + std::to_string(run) + ".lp";
@@ -227,17 +232,17 @@ int main()
                           << "- Start node: " << result.start_node << "\n\n";
 
                 // write to CSV
-                csvfile << cfg.index << "," << result.run_index << "," << result.N << ","
+                csvfile << cfg.getIndex() << "," << result.run_index << "," << result.N << ","
                         << result.start_node << "," << result.solve_time << ","
                         << (result.optimal ? 1 : 0) << "," << result.gap << ","
                         << result.objective_value << ",,\n";
                 if (run == 10)
                 {
-                    csvfile << cfg.index << ",,,,,,," << avg_time / 10.0 << "," << optimal_count << "\n";
+                    csvfile << cfg.getIndex() << ",,,,,,," << avg_time / 10.0 << "," << optimal_count << "\n";
                 }
             }
             char towait;
-            std::cout << "\nAll runs completed for config " << (cfg.index) << ". Press a key to continue...\n";
+            std::cout << "\nAll runs completed for config " << (cfg.getIndex()) << ". Press a key to continue...\n";
             std::cin >> towait;
         }
         csvfile.close();
