@@ -2,83 +2,88 @@
  * @file sample_generator.cpp
  * @brief Implementation of SampleGenerator class
  */
-
 #include "sample_generator.h"
 
-#include <cstdio>
 #include <iostream>
-#include <vector>
-#include <limits>
-#include <cstdlib>
-#include <ctime>
-#include <string>
+#include <fstream>
 #include <filesystem>
+#include <cmath>
+#include <random>
 
 namespace fs = std::filesystem;
 
-SampleGenerator::SampleGenerator()
-{
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
-}
+SampleGenerator::SampleGenerator() = default;
 
-void SampleGenerator::generate(int config, int N)
+void SampleGenerator::generate(int config_index, const Board& board)
 {
-    if (N < 2 || N > MAXN)
+    if (!board.isValid())
     {
-        std::cout << "N out of bounds, using N = " << MAXN << std::endl;
-        N = MAXN;
+        std::cerr << "Cannot generate sample: board is invalid\n";
+        return;
     }
 
-    // ensure samples directory exists
-    fs::create_directories("samples");
-
-    setupGraph(N);
-    saveGraph(config, N);
+    setupGraph(board);
+    saveGraph(config_index, board);
 }
 
-void SampleGenerator::setupGraph(int N)
+void SampleGenerator::setupGraph(const Board& board)
 {
-    std::cout << "Generating symmetric costs for all edges..." << std::endl;
+    const auto& holes = board.getHoles();
+    const int n = static_cast<int>(holes.size());
 
-    costMatrix.assign(N, std::vector<double>(N, 0.0));
+    costMatrix.assign(n, std::vector<double>(n, 0.0));
 
-    for (int i = 0; i < N; ++i)
+    std::mt19937 rng(std::random_device{}());
+    std::uniform_real_distribution<double> noise(0.9, 1.1);
+
+    for (int i = 0; i < n; ++i)
     {
-        for (int j = i + 1; j < N; ++j)
+        for (int j = i + 1; j < n; ++j)
         {
-            double cost = double(std::rand() % 10 + 1);
+            double dx = holes[i].x - holes[j].x;
+            double dy = holes[i].y - holes[j].y;
+            double distance = std::sqrt(dx * dx + dy * dy);
+
+            double cost = distance * noise(rng);
+
             costMatrix[i][j] = cost;
             costMatrix[j][i] = cost;
         }
     }
 }
 
-void SampleGenerator::saveGraph(int config, int N)
+void SampleGenerator::saveGraph(int config_index, const Board& board)
 {
-    char filename[128];
-    std::snprintf(filename, sizeof(filename), "samples/config_%d_holes_%d.txt", config, N);
+    fs::create_directories("samples");
 
-    FILE* f = std::fopen(filename, "w");
-    if (!f)
+    const int holes = static_cast<int>(board.getHoles().size());
+    const int size  = board.getSize();
+
+    std::string filename =
+        "samples/config_" + std::to_string(config_index) +
+        "_board_" + std::to_string(size) + "x" + std::to_string(size) +
+        "_holes_" + std::to_string(holes) + ".txt";
+
+    std::ofstream out(filename);
+    if (!out)
     {
-        std::cerr << "Error opening file " << filename << std::endl;
+        std::cerr << "Failed to write " << filename << "\n";
         return;
     }
-    
-        std::fprintf(f, "%d\n", config);
-    std::fprintf(f, "%d\n", N);
 
-    for (int i = 0; i < N; ++i)
+    out << config_index << "\n";
+    out << holes << "\n";
+
+    for (const auto& row : costMatrix)
     {
-        for (int j = 0; j < N; ++j)
+        for (size_t j = 0; j < row.size(); ++j)
         {
-            std::fprintf(f, "%.6f", costMatrix[i][j]);
-            if (j + 1 < N)
-                std::fprintf(f, " ");
+            out << row[j];
+            if (j + 1 < row.size()) out << " ";
         }
-        std::fprintf(f, "\n");
+        out << "\n";
     }
 
-    std::fclose(f);
-    std::cout << "Graph sample written to " << filename << std::endl;
+    std::cout << "Graph sample written to " << filename << "\n";
 }
+

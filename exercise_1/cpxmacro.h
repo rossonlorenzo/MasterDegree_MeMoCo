@@ -1,11 +1,11 @@
 /**
- * @file cpx_macro.h
+ * @file cpxmacro.h
  * Cplex Helper Macros
  *
  */
 
-#ifndef CPX_MACRO_H
-#define CPX_MACRO_H
+#ifndef CPXMACRO_H
+#define CPXMACRO_H
 
 #include <cstring>
 #include <string>
@@ -64,4 +64,4 @@ if (status){\
 } \
 } while(false)
 
-#endif /* CPX_MACRO_H */
+#endif /* CPXMACRO_H */

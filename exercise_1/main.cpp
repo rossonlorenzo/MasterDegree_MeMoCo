@@ -17,16 +17,95 @@
 #include <limits>
 #include <random>
 
-
 #include "cpxmacro.h"
 #include "classes/model.h"
 #include "classes/suggested_model.h"
 #include "classes/MTZ_model.h"
+#include "classes/board.h"
+#include "classes/pattern_library.h"
 #include "classes/sample_generator.h"
 
 namespace fs = std::filesystem;
 int status;
 char errmsg[BUF_SIZE];
+
+
+void sampleGeneration(int config_count)
+{
+    const auto& predefinedPatterns = PatternLibrary::all();
+
+    for (int config = 1; config <= config_count; ++config)
+    {
+        int board_size;
+        std::vector<Pattern> selectedPatterns;
+
+        std::cout << "\nConfig " << config << " - choose a size for the board:\n"
+                  << "small  (30x30)\n"
+                  << "medium (50x50)\n"
+                  << "large  (100x100)\n"
+                  << "Enter size option (30, 50 or 100): ";
+
+        std::cin >> board_size;
+
+        int maxPatterns = 0;
+        switch (board_size)
+        {
+            case 30:  maxPatterns = 3; break;
+            case 50:  maxPatterns = 6; break;
+            case 100: maxPatterns = 10; break;
+            default:
+                std::cout << "Invalid board size.\n";
+                continue;
+        }
+
+        int pattern_count;
+        std::cout << "Enter number of patterns to place (max "
+                  << maxPatterns << "): ";
+        std::cin >> pattern_count;
+
+        pattern_count = std::min(pattern_count, maxPatterns);
+
+        for (int i = 0; i < pattern_count; ++i)
+        {
+            std::cout << "\nAvailable patterns:\n";
+            for (size_t j = 0; j < predefinedPatterns.size(); ++j)
+            {
+                std::cout << j + 1 << ": "
+                          << predefinedPatterns[j].name << "\n";
+            }
+
+            int choice;
+            std::cout << "Select pattern " << i + 1 << ": ";
+            std::cin >> choice;
+
+            if (choice < 1 || choice > (int)predefinedPatterns.size())
+            {
+                std::cout << "Invalid selection. Try again.\n";
+                --i;
+                continue;
+            }
+
+            selectedPatterns.push_back(predefinedPatterns[choice - 1]);
+        }
+
+        Board board(board_size, selectedPatterns);
+
+        if (!board.isValid())
+        {
+            std::cout << "Board configuration invalid. Patterns do not fit.\n";
+        }
+        else
+        {
+            std::cout << "Board successfully generated.\n";
+            SampleGenerator generator;
+            for (int i = 1; i <= 10; ++i){
+                generator.generate(i, board);
+                std::cout << "Sample graph saved for config " << i << ".\n";
+            }
+        }
+    }
+}
+
 
 int main()
 {
@@ -34,25 +113,17 @@ int main()
     {
         std::random_device rd;
         std::mt19937 rng(rd());
-        SampleGenerator generator;
+        
         int config_count = 0;
-        std::cout << "Number of configurations to generate: (Enter 0 to skip) ";
+        std::cout << "Number of configurations to generate:\n" 
+        << " (Notice:\n"
+        << "    - each configuration will generate 10 random samples following the configuration specifics\n"
+        << "    - each configuration will be tested 10 times with random starting node): (Enter 0 to skip):\n";
         std::cin >> config_count;
+        if (config_count > 0)
+            sampleGeneration(config_count);
 
-        std::cout << "The program will manage all the configurations in the samples directory if not empty ... \n";
-        for (int config = 1; config <= config_count; ++config)
-        {
-            int N = SampleGenerator::MAXN;
-            std::cout << "Config " << config << " - insert N (<= "
-                      << SampleGenerator::MAXN << "): ";
-            if (!(std::cin >> N))
-            {
-                N = SampleGenerator::MAXN;
-                std::cin.clear();
-                std::cin.ignore(10000, '\n');
-            }
-            generator.generate(config, N);
-        }
+        std::cout << "The program will manage all the configurations in the samples directory...\n";
 
         // declare env & lp
         DECL_ENV(env);
@@ -67,7 +138,7 @@ int main()
                   << "2 - MTZ Model\n"
                   << "Enter model type (1 or 2): ";
         std::cin >> model_type;
-        Model* model = nullptr;
+        Model *model = nullptr;
         switch (model_type)
         {
         case 1:
@@ -132,7 +203,6 @@ int main()
             for (int run = 1; run <= 10; ++run)
             {
                 int start_node = std::uniform_int_distribution<int>(0, cfg.N - 1)(rng);
-
 
                 // setup config
                 std::string path = configDir + "/run_" + std::to_string(run) + ".lp";
