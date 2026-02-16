@@ -1,77 +1,98 @@
-/**
+/*
  * @file TSPSolver.h
- * @brief TSP solver (neighborhood search)
- *
+ * @brief TSP solver with Simulated Annealing tuning/testing
  */
 
 #ifndef TSPSOLVER_H
 #define TSPSOLVER_H
 
 #include <vector>
+#include <random>
 
 #include "TSPSolution.h"
+#include "TSP.h"
 
-/**
- * Class representing substring reversal move
- */
-typedef struct move {
-  int			substring_begin;
-  int			substring_end;
-} TSPMove;
-
-/**
- * Class that solves a TSP problem by neighbourdood search and 2-opt moves
- */
 class TSPSolver
 {
 public:
-  /** Constructor */
-  TSPSolver ( ) { }
-  /**
-   * evaluate a solution
-   * @param sol: solution to be evaluated
-   * @param TSP: TSP data
-   * @return the value of the solution
-   */
-  double evaluate ( const TSPSolution& sol , const TSP& tsp ) const {
-    double total = 0.0;
-    for ( uint i = 0 ; i < sol.sequence.size() - 1 ; ++i ) {
-      int from = sol.sequence[i]  ;
-      int to   = sol.sequence[i+1];
-      total += tsp.getCost()[from][to];
-    }
-    return total;
-  }
-  /**
-   * initialize a solution as a random sequence by random swaps
-   * @param sol solution to be initialized
-   * @return true if everything OK, false otherwise
-   */
-  bool initRnd ( TSPSolution& sol ) {
-    srand(time(NULL));
-    for ( uint i = 1 ; i < sol.sequence.size() ; ++i ) {
-      // intial and final position are fixed (initial/final node remains 0)
-      int idx1 = rand() % (sol.sequence.size()-2) + 1;
-      int idx2 = rand() % (sol.sequence.size()-2) + 1;
-      int tmp = sol.sequence[idx1];
-      sol.sequence[idx1] = sol.sequence[idx2];
-      sol.sequence[idx2] = tmp;
-    }
-    std::cout << "### "; sol.print(); std::cout << " ###" << std::endl;
-    return true;
-  }
-  /**
-   * search for a good tour by neighbourhood search
-   * @param TSP TSP data
-   * @param initSol initial solution
-   * @param bestSol best found solution (output)
-   * @return true id everything OK, false otherwise
-   */
-  bool solve ( const TSP& tsp , const TSPSolution& initSol , TSPSolution& bestSol );
+  struct SAParameters
+  {
+    double T0 = 1000.0;
+    double Tmin = 1e-3;
+    double alpha = 0.95;
+    int itersPerT = 100;
+    int maxNoImprove = 1000;
+  };
+
+  struct RunResult
+  {
+    int run_index = 0;
+    int N = 0;
+    int start_node = 0;
+    double solve_time = 0.0;
+
+    double initial_cost = 0.0;
+    double best_cost = 0.0;
+    double worst_cost = 0.0;
+    double improvement = 0.0;
+
+    SAParameters paramsUsed{};
+  };
+
+  struct Results
+  {
+    std::vector<RunResult> runResults;
+    SAParameters bestParams{};
+    double averageImprovement = 0.0;
+    double averageCost = 0.0;
+  };
+
+  /* Constructor (NO default ctor) */
+  TSPSolver(const TSP& tuning, const TSP& test);
+
+  /* Instance management */
+  void setTuningInstance(const TSP &tsp);
+  void setTestInstance(const TSP &tsp);
+  void setSAParameters(const SAParameters &params);
+
+  /* Results management */
+  void clearResults(Results &res);
+  RunResult &getCurrentRunResult();
+  Results &getTuningResults();
+  Results &getTestResults();
+
+  /* Main workflow (one run per call) */
+  void runTuning(const int &start_node, const int &run_id);
+  void runTests(const int &start_node, const int &run_id);
+
+  /* Select best parameters out of a Results container */
+  void selectBestParameters(Results &res);
 
 protected:
-  //TODO: declare here any "internal" method
+  TSP tuningInstance;
+  TSP testInstance;
 
+  SAParameters tunedParams{};
+  bool paramsReady = false;
+
+  Results tuningResult;
+  Results testResult;
+  RunResult current_run_result;
+
+  std::mt19937 rng_;
+
+  /* Core */
+  void simulatedAnnealing(
+      const TSP &tsp,
+      TSPSolution &sol,
+      const SAParameters &params,
+      bool shortRun,
+      double &worstCost);
+
+  double evaluate(const TSPSolution &sol, const TSP &tsp) const;
 };
+
+/* Needed for grouping params */
+bool operator==(const TSPSolver::SAParameters &a, const TSPSolver::SAParameters &b);
 
 #endif /* TSPSOLVER_H */

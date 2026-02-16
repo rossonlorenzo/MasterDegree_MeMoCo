@@ -49,9 +49,10 @@ private:
 public:
     Model(Env env, Prob lp);
     virtual ~Model();
+    RunResult &getCurrentRunResult();
     // LP/MIP setup and solve
     int setupLP(TSP config, int run_id, int start_node, const std::string &lp_file);
-    RunResult solveRun(int run_id, const std::string &solution_file);
+    void solveRun(int run_id, const std::string &solution_file);
 };
 
 #endif // BASE_MODEL_H

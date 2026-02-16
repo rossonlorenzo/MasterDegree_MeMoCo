@@ -39,6 +39,11 @@ void Model::setStartNode(int s)
     start_node = s;
 }
 
+Model::RunResult &Model::getCurrentRunResult()
+{
+    return current_run_result;
+}
+
 /* ============================================================
  *  setupLP
  * ============================================================ */
@@ -73,7 +78,7 @@ int Model::setupLP(TSP config, int run_id, int start_node, const std::string &lp
 /* ============================================================
  *  solveRun
  * ============================================================ */
-Model::RunResult Model::solveRun(int run_id,
+void Model::solveRun(int run_id,
                           const std::string &solution_file)
 {
     if (!env || !lp)
@@ -111,6 +116,4 @@ Model::RunResult Model::solveRun(int run_id,
     {
         CHECKED_CPX_CALL(CPXsolwrite, env, lp, solution_file.c_str());
     }
-
-    return current_run_result;
 }

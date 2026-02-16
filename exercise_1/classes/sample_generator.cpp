@@ -72,6 +72,7 @@ void SampleGenerator::saveGraph(int config_index, const Board& board)
     }
 
     out << config_index << "\n";
+    out << size << "\n";
     out << holes << "\n";
 
     for (const auto& row : costMatrix)

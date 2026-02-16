@@ -13,22 +13,24 @@
 #include <fstream>
 #include <vector>
 
-/**
+/*
  * Class that describes a TSP instance (a cost matrix, nodes are identified by integer 0 ... n-1)
  */
 class TSP
 {
 private:
     int index;
+    int board_size;
     int N;
     std::vector<std::vector<double>> cost;
 
 public:
-    TSP(int idx, int n, const std::vector<std::vector<double>>& c)
-        : index(idx), N(n), cost(c) {}
+    TSP(int idx, int size, int n, const std::vector<std::vector<double>>& c)
+        : index(idx), board_size(size), N(n), cost(c) {}
 
     // Getters
     int getIndex() const { return index; }
+    int getBoardSize() const { return board_size; }
     int getN() const { return N; }
     const std::vector<std::vector<double>>& getCost() const { return cost; }
     void setIndex(int idx) { index = idx; }
